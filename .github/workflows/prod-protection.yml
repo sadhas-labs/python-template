@@ -1,0 +1,70 @@
+name: Enforce Production Branch Protection
+
+on:
+  push:
+    branches:
+      - prod
+  pull_request:
+    branches:
+      - prod
+
+jobs:
+  prevent-direct-push:
+    name: Prevent Direct Push to Prod
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block Direct Push
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "❌ Direct pushes to 'prod' are not allowed. Please use Pull Requests."
+            exit 1
+          fi
+
+  require-approvals:
+    name: Enforce PR Approvals
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR Approvals
+        run: |
+          APPROVALS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" | jq '[.[] | select(.state == "APPROVED")] | length')
+          if [[ "$APPROVALS" -lt 2 ]]; then
+            echo "❌ PR requires at least 2 approvals before merging."
+            exit 1
+          fi
+
+  enforce-status-checks:
+    name: Require Status Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check CI/CD Status
+        run: |
+          STATUSES=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/status" | jq -r '.state')
+          if [[ "$STATUSES" != "success" ]]; then
+            echo "❌ Required status checks have not passed."
+            exit 1
+          fi
+
+  restrict-mergers:
+    name: Restrict Who Can Merge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify User Permissions
+        run: |
+          ALLOWED_USERS=("thealphacubicle")
+          if [[ ! " ${ALLOWED_USERS[@]} " =~ " ${GITHUB_ACTOR} " ]]; then
+            echo "❌ Only authorized users can merge into 'prod'."
+            exit 1
+          fi
+
+  prevent-bypass:
+    name: Prevent Bypass of Protection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block Unauthorized Actions
+        run: |
+          if [[ "${{ github.actor }}" == "thealphacubicle"]]; then
+            echo "❌ Even admins cannot bypass these rules. Contact DevOps for exceptions."
+            exit 1
+          fi
