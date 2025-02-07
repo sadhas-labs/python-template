@@ -1,20 +1,37 @@
-name: Slack Notifications
+name: Production CI
 
 on:
   push:
     branches:
-      - main
-      - prod
+      - prod  # Only trigger on pushes to prod
   pull_request:
-    types: [opened, closed]
+    types: [closed]
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Send notification to Slack
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_CHANNEL: "#dev-updates"
-          SLACK_MESSAGE: "🚀 GitHub Alert: New event in *${{ github.repository }}* by *${{ github.actor }}*"
+      - name: Send notification to Discord
+        run: |
+          curl -H "Content-Type: application/json" \
+          -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+          -d '{
+            "username": "GitHub Notifier",
+            "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+            "embeds": [{
+              "title": "🚀 Deployment Alert!",
+              "description": "New changes have been merged into **prod** in `${{ github.repository }}` by **${{ github.actor }}**",
+              "color": 5814783,
+              "timestamp": "'$(date --utc +%Y-%m-%dT%H:%M:%SZ)'",
+              "fields": [
+                {
+                  "name": "Commit",
+                  "value": "[View Commit](https://github.com/${{ github.repository }}/commit/${{ github.sha }})"
+                },
+                {
+                  "name": "Branch",
+                  "value": "prod"
+                }
+              ]
+            }]
+          }'
