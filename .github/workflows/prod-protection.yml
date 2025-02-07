@@ -29,6 +29,16 @@ jobs:
             exit 1
           fi
 
+  block-prod-to-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if PR is from prod
+        run: |
+          if [[ "${{ github.event.pull_request.base.ref }}" == "dev" && "${{ github.event.pull_request.head.ref }}" == "prod" ]]; then
+            echo "❌ Merging 'prod' into 'dev' is not allowed!"
+            exit 1
+          fi
+
   require-approvals:
     name: Enforce PR Approvals
     runs-on: ubuntu-latest
