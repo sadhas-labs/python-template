@@ -19,6 +19,15 @@ jobs:
             echo "❌ Direct pushes to 'prod' are not allowed. Please use Pull Requests."
             exit 1
           fi
+  block-direct-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prevent Push to Prod
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/prod" ]]; then
+            echo "❌ Direct push to 'prod' is not allowed. Use pull requests!"
+            exit 1
+          fi
 
   require-approvals:
     name: Enforce PR Approvals
